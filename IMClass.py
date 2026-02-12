@@ -82,6 +82,8 @@ class IM:
     
     def IM_dqe(self, Fxyz=None , k=2/3, timeVect=np.empty(0)):
 
+        # Trecho para criar um vetor de Tempo para simular
+        # a posicao theta do rotor
         if timeVect.size == 0:
             _timeVect = np.linspace(0, 0.015, Fxyz.shape[1])
             timeVect = np.copy(_timeVect) # Vetor de tempo temporario
