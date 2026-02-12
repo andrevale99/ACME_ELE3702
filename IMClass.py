@@ -3,7 +3,7 @@ from numpy import pi
 
 class IM:
 
-    def __init__(self, ArrayParam=None, f=60, we=2*pi*60,Vabc=None):
+    def __init__(self, ArrayParam=None, f=60,Vabc=None):
         if ArrayParam == None:
             print("Passar Parametros do Motor em um vetor de 8 posicoes\nna seguinte ordem:")
             print(f'Rs: Resistência do Estator\n \
@@ -35,7 +35,7 @@ class IM:
 
             self.Vabc = Vabc #Vetor 1x3 Das tensoes das fases em RMS
             self.f = f #Frequencia da Rede (Hz)
-            self.we = we #Frequencia da rede (rad/s)
+            self.we = 2 * pi * f #Frequencia da rede (rad/s)
 
             self.Rs = np.array([
                 [self.Rs, 0, 0],
@@ -62,17 +62,59 @@ class IM:
                 [-self.n**2 * Lms / 2, -self.n**2 * Lms / 2, (Lls + self.n**2 * Lms)]
             ], dtype=np.float64)
 
-    def IM_dqTransform(self, k=2/3,Theta=0):
+    def IM_dqs(self, Fxyz=None ,k=2/3,Theta=0):
+        '''
+        Funcao que retorna uma transformacao em quadratura 
+        para os eixos dqn.
+
+        Parametros:
+        Fxyz: Vetor com as 3 variaveis
+        k: Constante de magnitude (padrao=2/3)
+        Theta: Angulo entre o eixo D com o enrolamento da fase A
+        '''
         T =  k * np.array([
             [np.cos(Theta), np.cos(Theta - 2*pi/3), np.cos(Theta + 2*pi/3)],
             [-np.sin(Theta), -np.sin(Theta - 2*pi/3), -np.sin(Theta + 2*pi/3)],
             [1/2, 1/2, 1/2]
         ])
 
-        return (T @ self.Vabc)
+        return (T @ Fxyz)
+    
+    def IM_dqe(self, Fxyz=None , k=2/3, timeVect=np.empty(0)):
+
+        if timeVect.size == 0:
+            _timeVect = np.linspace(0, 0.015, Fxyz.shape[1])
+            timeVect = np.copy(_timeVect) # Vetor de tempo temporario
+            del _timeVect
+
+        Vdqs = self.IM_dqs(Fxyz)
+
+        Theta = self.we * timeVect
+
+        R = np.array([
+            [np.cos(Theta), np.sin(Theta)],
+            [-np.sin(Theta), np.cos(Theta)]
+        ])
+
+        Vdqe = np.array([
+            R[0,0,:] * Vdqs[0,:] + R[0,1,:] * Vdqs[1,:],
+            R[1,0,:] * Vdqs[0,:] + R[1,1,:] * Vdqs[1,:]
+        ])
+
+
+        del R,Theta, Vdqs
+
+        return Vdqe
+
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
+
+    #==========================================================
+    # VARIAVEIS
+    #==========================================================
+    Samples = 1000
+    timeVect = np.linspace(0, 0.015, Samples)
 
     Rs = 0.294 # Resistencia do estator
     Lls = 1.39e-3 # Indutancia de dispersao  do estator
@@ -83,10 +125,6 @@ if __name__ == "__main__":
     Llr = 0.74e-3 # Indutancia de dispersao do rotor
     Lmr = 41e-3 # Indutancia de magnetizacao  do rotor
     Nr = 1 # Voltas no enrolamento do rotor
-
-    Samples = 1000
-
-    timeVect = np.linspace(0, 0.015, Samples)
 
     Vm = 100 # Amplitude da tensao da rede eletrica (V)
 
@@ -99,13 +137,23 @@ if __name__ == "__main__":
         Vm*np.cos(omega_e*timeVect + 2*np.pi/3)
     ])
 
-    Params = [Rs,Lms,Lls,Ns,Rr,Lmr,Llr,Nr]
-    x = IM(Params,Vabc=Vabc)
+    #==========================================================
 
-    Vdqs = x.IM_dqTransform()
+    Params = [Rs,Lms,Lls,Ns,Rr,Lmr,Llr,Nr]
+    x = IM(Params,Vabc=Vabc, f=f)
+
+    Vdqs = x.IM_dqs(Vabc)
 
     plt.title("Vdqn estacionario (referencia no estator)")
     plt.plot(timeVect, Vdqs[0,:], label='Vds')
     plt.plot(timeVect, Vdqs[1,:], label='Vqs')
+    plt.legend()
+    plt.show()
+
+    Vdqe = x.IM_dqe(Vabc, timeVect=timeVect)
+
+    plt.title("Vdqn rotacional (referencia no rotor)")
+    plt.plot(timeVect, Vdqe[0,:], label='Vde')
+    plt.plot(timeVect, Vdqe[1,:], label='Vqe')
     plt.legend()
     plt.show()
