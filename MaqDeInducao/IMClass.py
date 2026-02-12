@@ -4,7 +4,7 @@ from numpy import pi
 class IM:
 
     def __init__(self, ArrayParam=None, f=60,Vabc=None):
-        if ArrayParam == None:
+        if len(ArrayParam) < 8:
             print("Passar Parametros do Motor em um vetor de 8 posicoes\nna seguinte ordem:")
             print(f'Rs: Resistência do Estator\n \
                   Lms: Indutancia de magnetizacao do estator\n \
@@ -95,14 +95,14 @@ class IM:
 
         R = np.array([
             [np.cos(Theta), np.sin(Theta)],
-            [-np.sin(Theta), np.cos(Theta)]
+            [-np.sin(Theta), np.cos(Theta)],
         ])
 
         Vdqe = np.array([
             R[0,0,:] * Vdqs[0,:] + R[0,1,:] * Vdqs[1,:],
-            R[1,0,:] * Vdqs[0,:] + R[1,1,:] * Vdqs[1,:]
+            R[1,0,:] * Vdqs[0,:] + R[1,1,:] * Vdqs[1,:],
+            Vdqs[2,:]
         ])
-
 
         del R,Theta, Vdqs
 
@@ -145,17 +145,13 @@ if __name__ == "__main__":
     x = IM(Params,Vabc=Vabc, f=f)
 
     Vdqs = x.IM_dqs(Vabc)
-
-    plt.title("Vdqn estacionario (referencia no estator)")
-    plt.plot(timeVect, Vdqs[0,:], label='Vds')
-    plt.plot(timeVect, Vdqs[1,:], label='Vqs')
-    plt.legend()
-    plt.show()
-
     Vdqe = x.IM_dqe(Vabc, timeVect=timeVect)
 
-    plt.title("Vdqn rotacional (referencia no rotor)")
+    plt.title("Vdqn Park Transformation")
+    plt.plot(timeVect, Vdqs[0,:], label='Vds')
+    plt.plot(timeVect, Vdqs[1,:], label='Vqs')
     plt.plot(timeVect, Vdqe[0,:], label='Vde')
     plt.plot(timeVect, Vdqe[1,:], label='Vqe')
     plt.legend()
+    plt.grid()
     plt.show()
