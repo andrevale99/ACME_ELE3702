@@ -8,9 +8,9 @@ do fluxo magnetico dos enrolamentos do motor
 
 # Variaveis Globais do sistema
 
-rs = 10 # Resistencia do estator
-Lls = 1 # Indutancia de magnetizacao do estator
-Lms = 1 # Indutancia de dispersao do estator
+rs = 0.294 # Resistencia do estator
+Lls = 1.39e-3 # Indutancia de dispersao  do estator
+Lms = 41e-3 # Indutancia de magnetizacaodo estator
 Ns = 1 # Voltas no enrolamento do estator
 
 Rs = np.array([
@@ -19,10 +19,10 @@ Rs = np.array([
     [0, 0, rs]
 ])
 
-rr = 1 # Resistencia do rotor
-Llr = 1 # Indutancia de magnetizacao do rotor
-Lmr = 1 # Indutancia de dispersao do rotor
-Nr = 2 # Voltas no enrolamento do rotor
+rr = 0.156 # Resistencia do rotor
+Llr = 0.74e-3 # Indutancia de dispersao do rotor
+Lmr = 41e-3 # Indutancia de magnetizacao  do rotor
+Nr = 1 # Voltas no enrolamento do rotor
 
 Rr = np.array([
     [rr, 0, 0],
@@ -36,10 +36,8 @@ Samples = 1000# Quantidade de dados para a simulacao
 
 # Posicao do rotor
 theta_r = np.linspace(0, np.pi, Samples)
-# theta_r = 0
 
 t = np.linspace(0,0.05,Samples) # Vetor tempo para simulacao
-# t = 0 
 
 f = 60 # Frequencia da rede eletrica em Hz
 
@@ -53,6 +51,7 @@ Iabcs = np.array([
     I*np.cos(omega*t - 2*np.pi/3),
     I*np.cos(omega*t + 2*np.pi/3)
 ], dtype=np.float64)
+
 
 # Vetor temporario para realizar os calculos
 Iabcr = np.ones((3, Samples)) * (I/2)
@@ -146,9 +145,19 @@ for k in range(Samples):
 d_lambda_s = np.gradient(lambda_s, t, axis=1)
 Vabcs = Rs @ Iabcs + d_lambda_s
 
-plt.plot(t, Vabcs[0,:], label="Va")
-plt.plot(t, Vabcs[1,:], label="Vb")
-plt.plot(t, Vabcs[2,:], label="Vc")
+plt.plot(t, Vabcs[0,:], label="Vas")
+plt.plot(t, Vabcs[1,:], label="Vbs")
+plt.plot(t, Vabcs[2,:], label="Vcs")
+plt.grid()
+plt.legend()
+plt.show()
+
+d_lambda_r = np.gradient(lambda_r, t, axis=1)
+Vabcr = Rr @ Iabcr + d_lambda_r
+
+plt.plot(t, Vabcr[0,:], label="Var")
+plt.plot(t, Vabcr[1,:], label="Vbr")
+plt.plot(t, Vabcr[2,:], label="Vcr")
 plt.grid()
 plt.legend()
 plt.show()
