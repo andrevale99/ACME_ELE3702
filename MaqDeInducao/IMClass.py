@@ -35,7 +35,7 @@ class IM:
 
     def __init__(self, ArrayParam=None, f=60, Vabc=None, 
                  _timeVect=np.empty(0), SimulationParam=[[0,0.1], 0.01]):
-        if len(ArrayParam) < 10:
+        if len(ArrayParam) < 13:
             print("Passar Parametros do Motor em um vetor de 8 posicoes\nna seguinte ordem:")
             print(f'Rs: Resistência do Estator\n \
                   Lms: Indutancia de magnetizacao do estator\n \
@@ -47,6 +47,9 @@ class IM:
                   Nr: Voltas do Enrolamente do rotor\n \
                   Polos: Quantidade de Polos da maquina\n \
                   RPM: RPM maximo da maquina \n \
+                  Xls: Reatancia do Estator \n \
+                  Xm: Reatancia de magnetizacao \n \
+                  Xlr: Reatancia do rotor \n \
                   ')
             print()
             print("Parametros passados independentes:")
@@ -70,21 +73,40 @@ class IM:
             self.f = f #Frequencia da Rede (Hz)
             self.we = 2 * pi * f #Frequencia da rede (rad/s)
 
-            self.Polos = ArrayParam[8]
-            self.n = ArrayParam[9]
+            self.Polos = ArrayParam[8] # Polos da Maquina
+            self.n = ArrayParam[9] #Velocidade Mecanica da maquina
 
-            self.ws = self.f * 2 * pi * (2 / Polos)# rad/s
+            self.ws = self.f * 2 * pi * (2 / Polos) #Velocidade sincrona (rad/s)
             self.ns = 120 * self.f / Polos
             self.s = (self.ns - self.n) / self.ns
 
-            self.Rs = np.array([
+            self.Xls = ArrayParam[10]
+            self.Xm = ArrayParam[11]
+            self.Xlr = ArrayParam[12]
+
+            # Calcula as reatancias caso sejam 0
+            if self.Xls == 0:
+                self.Xls = 2*pi*self.f*self.Lls
+            if self.Xm == 0:
+                self.Xm = 2*pi*self.f*self.Lms
+            if self.Xlr == 0:
+                self.Xlr = 2*pi*self.f*self.Llr
+
+            # Impedancia do estator
+            # Usando a simplificação pelo teorema
+            # de Thevenin
+            self.Zs = (1j * self.Xm * (self.Rs + 1j * self.Xls)) / (self.Rs + 1j * self.Xls + 1j*self.Xm)
+            # Impedancia Rotor
+            self.Zr = Rr / self.sVect + 1j*(self.Xlr)
+            self.Z = self.Zs + self.Zr
+
+            self.MtxRs = np.array([
                 [self.Rs, 0, 0],
                 [0, self.Rs, 0],
                 [0, 0, self.Rs]
             ])
 
-
-            self.Rr = np.array([
+            self.MtxRr = np.array([
                 [self.Rr, 0, 0],
                 [0, self.Rr, 0],
                 [0, 0, self.Rr]
@@ -162,6 +184,21 @@ class IM:
         del R,Theta, Vdqs
 
         return Vdqe
+    
+    def IM_getIsIr(self):
+        '''
+        Retorna as correntes do estator (Is)
+        e do rotor (Ir) do escorregamento maximo
+        ate o minimo
+        '''
+        Is = np.max(self.Vabc[0]) / np.abs(self.Z)
+        # Ismax = np.max(Is)
+
+        # Corrente no rotor
+        Ir = np.max(self.Vabc[0])  / (self.Rs + self.Rr / self.sVect + 1j*(self.Xls+self.Xlr))
+        # Irmax =  np.max(self.Vabc[0])  / (self.Rs + self.Rr / 1 + 1j*(self.Xls+self.Xlr))
+
+        return Is,Ir
 
 
 if __name__ == "__main__":
@@ -173,15 +210,19 @@ if __name__ == "__main__":
     Samples = 1000
     timeVect = np.linspace(0, 0.15, Samples)
 
-    Rs = 0.294 # Resistencia do estator
+    Rs = 6.4 # Resistencia do estator
     Lls = 1.39e-3 # Indutancia de dispersao  do estator
     Lms = 41e-3 # Indutancia de magnetizacaodo estator
     Ns = 1 # Voltas no enrolamento do estator
 
-    Rr = 0.156 # Resistencia do rotor
+    Rr = 4.25 # Resistencia do rotor
     Llr = 0.74e-3 # Indutancia de dispersao do rotor
     Lmr = 41e-3 # Indutancia de magnetizacao  do rotor
     Nr = 1 # Voltas no enrolamento do rotor
+
+    Xls = 5.85 #Ohm
+    Xlr = 5.85 #Ohm
+    Xm = 137.8 #Ohm
 
     Vm = 220 # Amplitude da tensao da rede eletrica (V)
 
@@ -199,7 +240,7 @@ if __name__ == "__main__":
 
     #==========================================================
 
-    Params = [Rs,Lms,Lls,Ns,Rr,Lmr,Llr,Nr,Polos,RPM]
+    Params = [Rs,Lms,Lls,Ns,Rr,Lmr,Llr,Nr,Polos,RPM,Xls,Xm,Xlr]
     x = IM(Params, Vabc=Vabc, f=f, _timeVect=timeVect)
 
     Vdqs = x.IM_dqs(Vabc)
@@ -210,6 +251,15 @@ if __name__ == "__main__":
     plt.plot(timeVect, Vdqs[1,:], label='Vqs')
     plt.plot(timeVect, Vdqe[0,:], label='Vde')
     plt.plot(timeVect, Vdqe[1,:], label='Vqe')
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+    Is,Ir = x.IM_getIsIr()
+
+    plt.title("Correntes")
+    plt.plot((1-x.sVect)*x.ns, np.abs(Is), label="Is")
+    plt.plot((1-x.sVect)*x.ns, np.abs(Ir), label="Ir")
     plt.legend()
     plt.grid()
     plt.show()
