@@ -3,7 +3,8 @@ from numpy import pi
 
 class IM:
 
-    def __init__(self, ArrayParam=None, f=60,Vabc=None):
+    def __init__(self, ArrayParam=None, f=60, Vabc=None, 
+                 _timeVect=np.empty(0), SimulationParam=[[0,0.1], 0.01]):
         if len(ArrayParam) < 8:
             print("Passar Parametros do Motor em um vetor de 8 posicoes\nna seguinte ordem:")
             print(f'Rs: Resistência do Estator\n \
@@ -62,13 +63,27 @@ class IM:
                 [-self.n**2 * Lms / 2, -self.n**2 * Lms / 2, (Lls + self.n**2 * Lms)]
             ], dtype=np.float64)
 
-    def IM_dqs(self, Fxyz=None ,k=2/3,Theta=0):
+
+        self.t0 = SimulationParam[0][0]
+        self.tf = SimulationParam[0][1]
+        self.dt = SimulationParam[1]
+        self.timeVect = 0
+        # Trecho para criar um vetor de Tempo para simular
+        # a posicao theta do rotor
+        if _timeVect.size == 0:
+            TemptimeVect = np.linspace(self.t0, self.tf, self.Vabc.shape[1])
+            self.timeVect = np.copy(TemptimeVect) # Vetor de tempo temporario
+            del TemptimeVect
+        else:
+            self.timeVect = np.copy(_timeVect)
+
+    def IM_dqs(self, Fxyz=None, k=2/3, Theta=0):
         '''
         Funcao que retorna uma transformacao em quadratura 
-        para os eixos dqn.
+        para os eixos dqn com o Referencial Estacionario (estator).
 
         Parametros:
-        Fxyz: Vetor com as 3 variaveis
+        Fxyz: Vetor com as 3 variaveis (fluxo, Tensao, Corrente)
         k: Constante de magnitude (padrao=2/3)
         Theta: Angulo entre o eixo D com o enrolamento da fase A
         '''
@@ -80,18 +95,19 @@ class IM:
 
         return (T @ Fxyz)
     
-    def IM_dqe(self, Fxyz=None , k=2/3, timeVect=np.empty(0)):
+    def IM_dqe(self, Fxyz=None, k=2/3):
+        '''
+        Funcao que retorna uma transformacao em quadratura 
+        para os eixos dqn com o Referencial Rotatorio (rotor).
 
-        # Trecho para criar um vetor de Tempo para simular
-        # a posicao theta do rotor
-        if timeVect.size == 0:
-            _timeVect = np.linspace(0, 0.015, Fxyz.shape[1])
-            timeVect = np.copy(_timeVect) # Vetor de tempo temporario
-            del _timeVect
+        Parametros:
+        Fxyz: Vetor com as 3 variaveis (fluxo, Tensao, Corrente)
+        k: Constante de magnitude (padrao=2/3)
+        Theta: Angulo entre o eixo D com o enrolamento da fase A
+        '''
+        Vdqs = self.IM_dqs(Fxyz, k=k)
 
-        Vdqs = self.IM_dqs(Fxyz)
-
-        Theta = self.we * timeVect
+        Theta = self.we * self.timeVect
 
         R = np.array([
             [np.cos(Theta), np.sin(Theta)],
@@ -116,7 +132,7 @@ if __name__ == "__main__":
     # VARIAVEIS
     #==========================================================
     Samples = 1000
-    timeVect = np.linspace(0, 0.015, Samples)
+    timeVect = np.linspace(0, 0.15, Samples)
 
     Rs = 0.294 # Resistencia do estator
     Lls = 1.39e-3 # Indutancia de dispersao  do estator
@@ -142,10 +158,10 @@ if __name__ == "__main__":
     #==========================================================
 
     Params = [Rs,Lms,Lls,Ns,Rr,Lmr,Llr,Nr]
-    x = IM(Params,Vabc=Vabc, f=f)
+    x = IM(Params, Vabc=Vabc, f=f, _timeVect=timeVect)
 
     Vdqs = x.IM_dqs(Vabc)
-    Vdqe = x.IM_dqe(Vabc, timeVect=timeVect)
+    Vdqe = x.IM_dqe(Vabc)
 
     plt.title("Vdqn Park Transformation")
     plt.plot(timeVect, Vdqs[0,:], label='Vds')
