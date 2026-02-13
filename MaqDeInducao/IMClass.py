@@ -1,11 +1,41 @@
 import numpy as np
 from numpy import pi
 
+# ============================================
+# FUNCOES DE AUXILIO
+# ============================================
+def F_to_Ns(Poles, freqMotor):
+    '''
+    Funcao que retorna a velocidade
+    de rotação do campo
+    magnetomotriz
+
+    Parameters:
+        Poles: Quantidade de Polos do motor
+        freqMotor: Frequencia do motor
+
+    Returns:
+        A conversão em RPM.
+    '''
+    return ( 2 / Poles * freqMotor * 60)
+
+def Rad_to_Deg(rad):
+    return (rad * 180. / np.pi)
+
+def Deg_to_Rad(deg):
+    return (deg * np.pi / 180.)
+# ============================================
+# 
+# ============================================
+
 class IM:
+
+    # Vetor dos valores de escorregamento
+    sVect = np.linspace(1e-3, 1, 1000)
 
     def __init__(self, ArrayParam=None, f=60, Vabc=None, 
                  _timeVect=np.empty(0), SimulationParam=[[0,0.1], 0.01]):
-        if len(ArrayParam) < 8:
+        if len(ArrayParam) < 10:
             print("Passar Parametros do Motor em um vetor de 8 posicoes\nna seguinte ordem:")
             print(f'Rs: Resistência do Estator\n \
                   Lms: Indutancia de magnetizacao do estator\n \
@@ -15,6 +45,8 @@ class IM:
                   Lmr: Indutancia de magnetizacao do rotor\n \
                   Llr Indutancia do dispersao Rotor\n \
                   Nr: Voltas do Enrolamente do rotor\n \
+                  Polos: Quantidade de Polos da maquina\n \
+                  RPM: RPM maximo da maquina \n \
                   ')
             print()
             print("Parametros passados independentes:")
@@ -37,6 +69,13 @@ class IM:
             self.Vabc = Vabc #Vetor 1x3 Das tensoes das fases em RMS
             self.f = f #Frequencia da Rede (Hz)
             self.we = 2 * pi * f #Frequencia da rede (rad/s)
+
+            self.Polos = ArrayParam[8]
+            self.n = ArrayParam[9]
+
+            self.ws = self.f * 2 * pi * (2 / Polos)# rad/s
+            self.ns = 120 * self.f / Polos
+            self.s = (self.ns - self.n) / self.ns
 
             self.Rs = np.array([
                 [self.Rs, 0, 0],
@@ -144,10 +183,13 @@ if __name__ == "__main__":
     Lmr = 41e-3 # Indutancia de magnetizacao  do rotor
     Nr = 1 # Voltas no enrolamento do rotor
 
-    Vm = 100 # Amplitude da tensao da rede eletrica (V)
+    Vm = 220 # Amplitude da tensao da rede eletrica (V)
 
-    f = 100 # Frequencia da rede (Hz)
+    f = 60 # Frequencia da rede (Hz)
     omega_e = 2 * pi * f # Frequencia da rede (rad/s)
+
+    Polos = 4
+    RPM = 1715
 
     Vabc = np.array([
         Vm*np.cos(omega_e*timeVect),
@@ -157,7 +199,7 @@ if __name__ == "__main__":
 
     #==========================================================
 
-    Params = [Rs,Lms,Lls,Ns,Rr,Lmr,Llr,Nr]
+    Params = [Rs,Lms,Lls,Ns,Rr,Lmr,Llr,Nr,Polos,RPM]
     x = IM(Params, Vabc=Vabc, f=f, _timeVect=timeVect)
 
     Vdqs = x.IM_dqs(Vabc)
