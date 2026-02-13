@@ -16,7 +16,7 @@ J = 0.02              # inércia
 B = 0.001             # atrito viscoso
 Tl = 0                # carga inicial
 
-V_phase = 220/np.sqrt(3)
+V_phase = 220/np.sqrt(3) * np.sqrt(2)
 f = 60
 we = 2*np.pi*f
 
@@ -25,7 +25,7 @@ we = 2*np.pi*f
 # ==========================
 
 dt = 1e-4
-t_final = 5
+t_final = 2
 N = int(t_final/dt)
 
 t = np.linspace(0, t_final, N)
