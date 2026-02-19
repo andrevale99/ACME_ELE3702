@@ -204,7 +204,7 @@ class IM:
         '''
         Retorna o torque mecanico do motor de indução
         considerando as 3 fases do motor e os valores
-        escalres do Torque de Partida e Nominal.
+        escalres do Torque de Partida, Nominal e Maximo.
 
         Parametros:
         Is: Corrente do estator
@@ -219,7 +219,6 @@ class IM:
         sPartida = 1
         Tpartida = np.abs((3 / self.ws) * ((Vs**2) / ((self.Rs + self.Rr / sPartida) +
                                          1j*(self.Xls+self.Xlr))**2) * (self.Rr / sPartida))
-        print(f'Tpartida = {Tpartida}\n')
 
         smax = self.Rr / np.sqrt(self.Rs**2 + (self.Xls+self.Xlr)**2)
         Tmax = np.abs((3 / self.ws) * ((Vs**2) / ((self.Rs + self.Rr / smax) +
@@ -228,7 +227,7 @@ class IM:
         Tnominal = (3 / self.ws) * ((Vs**2) / ((self.Rs + self.Rr / self.s) 
                                                          + 1j*(self.Xls+self.Xlr))**2) * (self.Rr/self.s)
 
-        return Tmec, Tpartida, Tnominal
+        return Tmec, Tpartida, np.abs(Tnominal), Tmax
 
 
 if __name__ == "__main__":
@@ -240,27 +239,29 @@ if __name__ == "__main__":
     Samples = 1000
     timeVect = np.linspace(0, 0.15, Samples)
 
-    Rs = 6.4 # Resistencia do estator
-    Lls = 1.39e-3 # Indutancia de dispersao  do estator
-    Lms = 41e-3 # Indutancia de magnetizacaodo estator
-    Ns = 1 # Voltas no enrolamento do estator
-
-    Rr = 4.25 # Resistencia do rotor
-    Llr = 0.74e-3 # Indutancia de dispersao do rotor
-    Lmr = 41e-3 # Indutancia de magnetizacao  do rotor
-    Nr = 1 # Voltas no enrolamento do rotor
-
-    Xls = 5.85 #Ohm
-    Xlr = 5.85 #Ohm
-    Xm = 137.8 #Ohm
-
-    Vm = 220 # Amplitude da tensao da rede eletrica (V)
+    Vm = 460/np.sqrt(3) # Amplitude da tensao da rede eletrica (V)
 
     f = 60 # Frequencia da rede (Hz)
     omega_e = 2 * pi * f # Frequencia da rede (rad/s)
 
     Polos = 4
     RPM = 1715
+
+    Rs = .641 # Resistencia do estator
+    Lls = 1.39e-4 # Indutancia de dispersao  do estator
+    Lms = 41e-4 # Indutancia de magnetizacaodo estator
+    Ns = 1 # Voltas no enrolamento do estator
+
+    Rr = 0.3 # Resistencia do rotor
+    Llr = 0.74e-4 # Indutancia de dispersao do rotor
+    Lmr = 41e-4 # Indutancia de magnetizacao  do rotor
+    Nr = 1 # Voltas no enrolamento do rotor
+
+    # Xls = 2*pi*f*(Lms+Llr) #Ohm
+    # Xlr = 2*pi*f*(Lmr+Llr) #Ohm
+    Xls = 0.750
+    Xlr = 0.500
+    Xm = 26.3 #Ohm
 
     Vabc = np.array([
         Vm*np.cos(omega_e*timeVect),
@@ -294,7 +295,9 @@ if __name__ == "__main__":
     plt.grid()
     plt.show()
 
-    Tmec = x.IM_getTmec(Is, Ir)
+    Tmec,Tp,Tn,Tmax = x.IM_getTmec(Is, Ir)
+    print(Tp,np.abs(Tn), Tmax)
+
     plt.title("Torque Mecânico")
     plt.plot((1-x.sVect)*x.ns, np.abs(Tmec), label="Tmec")
     plt.legend()
