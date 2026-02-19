@@ -200,6 +200,38 @@ class IM:
 
         return Is,Ir
 
+    def IM_getTmec(self, Is, Ir):
+        '''
+        Retorna o torque mecanico do motor de indução
+
+        Parametros:
+        Is: Corrente do estator
+        Ir: Corrente do rotor
+        '''
+
+
+        Vs = np.max(self.Vabc[0])
+        Tmec = (3 / self.ws) * ((Vs**2) / ((self.Rs + self.Rr / self.sVect) 
+                                           + 1j*(self.Xls+self.Xlr))**2) * (self.Rr/self.sVect)
+        
+        sPartida = 1
+        Tpartida = np.abs((3 / self.ws) * ((Vs**2) / ((self.Rs + self.Rr / sPartida) +
+                                         1j*(self.Xls+self.Xlr))**2) * (self.Rr / sPartida))
+        print(f'Tpartida = {Tpartida}\n')
+
+        smax = self.Rr / np.sqrt(self.Rs**2 + (self.Xls+self.Xlr)**2)
+        Tmax = np.abs((3 / self.ws) * ((Vs**2) / ((self.Rs + self.Rr / smax) +
+                                     1j*(self.Xls+self.Xlr))**2) * (self.Rr / smax))
+        print(f'smax = {smax}')
+        print(f'RPM em smax = {(1-smax)*self.ns} RPM')
+        print(f'Tmax = {Tmax} N.m')
+
+        Tnominal = (3 / self.ws) * ((Vs**2) / ((self.Rs + self.Rr / self.s) 
+                                                         + 1j*(self.Xls+self.Xlr))**2) * (self.Rr/self.s)
+        print(f'Tnominal = {np.abs(Tnominal)}')
+
+        return Tmec
+
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
@@ -260,6 +292,13 @@ if __name__ == "__main__":
     plt.title("Correntes")
     plt.plot((1-x.sVect)*x.ns, np.abs(Is), label="Is")
     plt.plot((1-x.sVect)*x.ns, np.abs(Ir), label="Ir")
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+    Tmec = x.IM_getTmec(Is, Ir)
+    plt.title("Torque Mecânico")
+    plt.plot((1-x.sVect)*x.ns, np.abs(Tmec), label="Tmec")
     plt.legend()
     plt.grid()
     plt.show()
