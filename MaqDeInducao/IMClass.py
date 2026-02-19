@@ -203,6 +203,8 @@ class IM:
     def IM_getTmec(self, Is, Ir):
         '''
         Retorna o torque mecanico do motor de indução
+        considerando as 3 fases do motor e os valores
+        escalres do Torque de Partida e Nominal.
 
         Parametros:
         Is: Corrente do estator
@@ -222,15 +224,11 @@ class IM:
         smax = self.Rr / np.sqrt(self.Rs**2 + (self.Xls+self.Xlr)**2)
         Tmax = np.abs((3 / self.ws) * ((Vs**2) / ((self.Rs + self.Rr / smax) +
                                      1j*(self.Xls+self.Xlr))**2) * (self.Rr / smax))
-        print(f'smax = {smax}')
-        print(f'RPM em smax = {(1-smax)*self.ns} RPM')
-        print(f'Tmax = {Tmax} N.m')
 
         Tnominal = (3 / self.ws) * ((Vs**2) / ((self.Rs + self.Rr / self.s) 
                                                          + 1j*(self.Xls+self.Xlr))**2) * (self.Rr/self.s)
-        print(f'Tnominal = {np.abs(Tnominal)}')
 
-        return Tmec
+        return Tmec, Tpartida, Tnominal
 
 
 if __name__ == "__main__":
