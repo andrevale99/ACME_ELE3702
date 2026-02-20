@@ -30,7 +30,6 @@ def Deg_to_Rad(deg):
 
 class IM:
 
-    # Vetor dos valores de escorregamento
     sVect = np.linspace(1e-3, 1, 1000)
 
     def __init__(self, ArrayParam=None, f=60, Vabc=None, 
@@ -209,6 +208,12 @@ class IM:
         Parametros:
         Is: Corrente do estator
         Ir: Corrente do rotor
+
+        Retorno:
+        Tmec: Vetor do torque mecanico do motor de indução
+        Tpartida: Torque de partida do motor de indução (s=1)
+        Tnominal: Torque nominal do motor de indução (s=self.s)
+        [Tmax, smax]: Torque máximo do motor de indução e o escorregamento correspondente
         '''
 
 
@@ -223,12 +228,81 @@ class IM:
         smax = self.Rr / np.sqrt(self.Rs**2 + (self.Xls+self.Xlr)**2)
         Tmax = np.abs((3 / self.ws) * ((Vs**2) / ((self.Rs + self.Rr / smax) +
                                      1j*(self.Xls+self.Xlr))**2) * (self.Rr / smax))
+        
 
         Tnominal = (3 / self.ws) * ((Vs**2) / ((self.Rs + self.Rr / self.s) 
                                                          + 1j*(self.Xls+self.Xlr))**2) * (self.Rr/self.s)
 
-        return Tmec, Tpartida, np.abs(Tnominal), Tmax
+        return Tmec, Tpartida, np.abs(Tnominal), [Tmax, smax]
+    
+    def IM_getIl(self, HP, Vt, LetraCodigoNominal=None):
+        '''
+        Retorna a Corrente de partida do motor de inducao a partir
+        da Tabela de letras de Código NEMA. 
+        
+        Baseado no livro "Fundamentos de Maquinas Eletricas; Sthephen J. Chapman
+        5 edicao, 2013"
+        
+        Parametros:
+        HP: Potencia do motor em HP
+        Vt: Tensão de partida do motor
+        LetraCodigoNominal: Letra do codigo nominal do motor (ex: A, B, C, etc)
 
+        Retorno:
+        Corrente de partida do motor em Amperes
+        '''
+        fator = 0
+
+        if LetraCodigoNominal is None:
+            print("Codigo Nominal nao especificado")
+            return None
+        
+        match LetraCodigoNominal:
+            case 'A':
+                fator = 3.15
+            case 'B':
+                fator = 3.55
+            case 'C':
+                fator = 4.0
+            case 'D':
+                fator = 4.5
+            case 'E':
+                fator = 5.0
+            case 'F':
+                fator = 5.6
+            case 'G':
+                fator = 6.3
+            case 'H':
+                fator = 7.1
+            case 'J':
+                fator = 8.0
+            case 'K':
+                fator = 9.0
+            case 'L':
+                fator = 10.0
+            case 'M':
+                fator = 11.2
+            case 'N':
+                fator = 12.5
+            case 'P':
+                fator = 14.0
+            case 'R':
+                fator = 16.0
+            case 'S':
+                fator = 18.0
+            case 'T':
+                fator = 20.0
+            case 'U':
+                fator = 22.4
+            case 'V':
+                fator = 25.0
+            case _:
+                print("Codigo Nominal nao encontrado")
+                return None
+
+        Spartida = HP*fator # kVa
+
+        return (Spartida/(np.sqrt(3)*Vt)*1000)
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
@@ -280,26 +354,28 @@ if __name__ == "__main__":
     plt.title("Vdqn Park Transformation")
     plt.plot(timeVect, Vdqs[0,:], label='Vds')
     plt.plot(timeVect, Vdqs[1,:], label='Vqs')
-    plt.plot(timeVect, Vdqe[0,:], label='Vde')
-    plt.plot(timeVect, Vdqe[1,:], label='Vqe')
+    plt.plot(timeVect, Vdqe[0,:], label='Vde', ls='--')
+    plt.plot(timeVect, Vdqe[1,:], label='Vqe', ls='--')
     plt.legend()
     plt.grid()
     plt.show()
 
-    Is,Ir = x.IM_getIsIr()
+    # Is,Ir = x.IM_getIsIr()
 
-    plt.title("Correntes")
-    plt.plot((1-x.sVect)*x.ns, np.abs(Is), label="Is")
-    plt.plot((1-x.sVect)*x.ns, np.abs(Ir), label="Ir")
-    plt.legend()
-    plt.grid()
-    plt.show()
+    # plt.title("Correntes")
+    # plt.plot((1-x.sVect)*x.ns, np.abs(Is), label="Is")
+    # plt.plot((1-x.sVect)*x.ns, np.abs(Ir), label="Ir")
+    # plt.legend()
+    # plt.grid()
+    # plt.show()
 
-    Tmec,Tp,Tn,Tmax = x.IM_getTmec(Is, Ir)
-    print(Tp,np.abs(Tn), Tmax)
+    # Tmec,Tp,Tn,[Tmax,smax] = x.IM_getTmec(Is, Ir)
 
-    plt.title("Torque Mecânico")
-    plt.plot((1-x.sVect)*x.ns, np.abs(Tmec), label="Tmec")
-    plt.legend()
-    plt.grid()
-    plt.show()
+    # plt.title("Torque Mecânico")
+    # plt.plot((1-x.sVect)*x.ns, np.abs(Tmec), label="Tmec")
+    # plt.scatter((1-smax)*x.ns, Tmax, label="Tmec")
+    # plt.legend()
+    # plt.grid()
+    # plt.show()
+
+    # print(x.IM_getIl(15, 208, 'F'))
