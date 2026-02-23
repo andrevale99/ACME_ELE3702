@@ -199,7 +199,7 @@ class IM:
 
         return Is,Ir
 
-    def IM_getTmec(self, Is, Ir):
+    def IM_getTmec(self):
         '''
         Retorna o torque mecanico do motor de indução
         considerando as 3 fases do motor e os valores
@@ -313,7 +313,7 @@ if __name__ == "__main__":
     Samples = 1000
     timeVect = np.linspace(0, 0.15, Samples)
 
-    Vm = 460/np.sqrt(3) # Amplitude da tensao da rede eletrica (V)
+    Vm = 220 # Amplitude da tensao da rede eletrica (V)
 
     f = 60 # Frequencia da rede (Hz)
     omega_e = 2 * pi * f # Frequencia da rede (rad/s)
@@ -321,21 +321,21 @@ if __name__ == "__main__":
     Polos = 4
     RPM = 1715
 
-    Rs = .641 # Resistencia do estator
+    Rs = 6.4 # Resistencia do estator
     Lls = 1.39e-4 # Indutancia de dispersao  do estator
     Lms = 41e-4 # Indutancia de magnetizacaodo estator
     Ns = 1 # Voltas no enrolamento do estator
 
-    Rr = 0.3 # Resistencia do rotor
+    Rr = 4.25 # Resistencia do rotor
     Llr = 0.74e-4 # Indutancia de dispersao do rotor
     Lmr = 41e-4 # Indutancia de magnetizacao  do rotor
     Nr = 1 # Voltas no enrolamento do rotor
 
     # Xls = 2*pi*f*(Lms+Llr) #Ohm
     # Xlr = 2*pi*f*(Lmr+Llr) #Ohm
-    Xls = 0.750
-    Xlr = 0.500
-    Xm = 26.3 #Ohm
+    Xls = 5.85
+    Xlr = 5.85
+    Xm = 137.8 #Ohm
 
     Vabc = np.array([
         Vm*np.cos(omega_e*timeVect),
@@ -360,22 +360,22 @@ if __name__ == "__main__":
     plt.grid()
     plt.show()
 
-    # Is,Ir = x.IM_getIsIr()
+    Is,Ir = x.IM_getIsIr()
 
-    # plt.title("Correntes")
-    # plt.plot((1-x.sVect)*x.ns, np.abs(Is), label="Is")
-    # plt.plot((1-x.sVect)*x.ns, np.abs(Ir), label="Ir")
-    # plt.legend()
-    # plt.grid()
-    # plt.show()
+    plt.title("Correntes")
+    plt.plot((1-x.sVect)*x.ns, np.abs(Is), label="Is")
+    plt.plot((1-x.sVect)*x.ns, np.abs(Ir), label="Ir")
+    plt.legend()
+    plt.grid()
+    plt.show()
 
-    # Tmec,Tp,Tn,[Tmax,smax] = x.IM_getTmec(Is, Ir)
+    Tmec,Tp,Tn,[Tmax,smax] = x.IM_getTmec(Is, Ir)
 
-    # plt.title("Torque Mecânico")
-    # plt.plot((1-x.sVect)*x.ns, np.abs(Tmec), label="Tmec")
-    # plt.scatter((1-smax)*x.ns, Tmax, label="Tmec")
-    # plt.legend()
-    # plt.grid()
-    # plt.show()
+    plt.title("Torque Mecânico")
+    plt.plot((1-x.sVect)*x.ns, np.abs(Tmec), label="Tmec")
+    plt.scatter((1-smax)*x.ns, Tmax, label="Tmec")
+    plt.legend()
+    plt.grid()
+    plt.show()
 
     # print(x.IM_getIl(15, 208, 'F'))
