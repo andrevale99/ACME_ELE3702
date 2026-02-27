@@ -24,6 +24,36 @@ def Rad_to_Deg(rad):
 
 def Deg_to_Rad(deg):
     return (deg * np.pi / 180.)
+
+def n_with_ns(sVect, ns):
+    '''
+    Retorna a velocidade mecanica a partir da
+    velocidade sincrona e do escorregamenta
+
+    Parametro:
+    sVect: Vetor de escorregamento [0,1]
+    ns: Velocidade sincrona
+    '''
+    return (1-sVect)*ns
+
+def tensao_vf(f, f_min=10, f_max=60, V_min=50, V_max=220):
+    """
+    Calcula tensão linear em função da frequência (controle V/f)
+
+    f      : frequência (Hz) (escalar ou array)
+    f_min  : frequência mínima
+    f_max  : frequência máxima
+    V_min  : tensão mínima
+    V_max  : tensão máxima
+    """
+
+    # Limita a frequência dentro do intervalo
+    f = np.clip(f, f_min, f_max)
+
+    # Lei linear
+    V = V_min + (f - f_min) * (V_max - V_min) / (f_max - f_min)
+
+    return V
 # ============================================
 # 
 # ============================================
@@ -66,7 +96,7 @@ class IM:
             self.Llr = ArrayParam[6]
             self.Nr = ArrayParam[7]
 
-            self.n = self.Nr / self.Ns
+            self.Nsr = self.Nr / self.Ns # Razao entre os enrolamentos do rotor e do estator
 
             self.Vabc = Vabc #Vetor 1x3 Das tensoes das fases em RMS
             self.f = f #Frequencia da Rede (Hz)
@@ -75,8 +105,8 @@ class IM:
             self.Polos = ArrayParam[8] # Polos da Maquina
             self.n = ArrayParam[9] #Velocidade Mecanica da maquina
 
-            self.ws = self.f * 2 * pi * (2 / Polos) #Velocidade sincrona (rad/s)
-            self.ns = 120 * self.f / Polos
+            self.ws = self.f * 2 * pi * (2 / self.Polos) #Velocidade sincrona (rad/s)
+            self.ns = 120 * self.f / self. Polos
             self.s = (self.ns - self.n) / self.ns
 
             self.Xls = ArrayParam[10]
@@ -96,7 +126,7 @@ class IM:
             # de Thevenin
             self.Zs = (1j * self.Xm * (self.Rs + 1j * self.Xls)) / (self.Rs + 1j * self.Xls + 1j*self.Xm)
             # Impedancia Rotor
-            self.Zr = Rr / self.sVect + 1j*(self.Xlr)
+            self.Zr = self.Rr / self.sVect + 1j*(self.Xlr)
             self.Z = self.Zs + self.Zr
 
             self.MtxRs = np.array([
@@ -118,9 +148,9 @@ class IM:
             ], dtype=np.float64)
 
             Lr = np.array([
-                [(Lls + self.n**2 * Lms), -self.n**2 * Lms / 2, -self.n**2 * Lms / 2],
-                [-self.n**2 * Lms / 2, (Lls + self.n**2 * Lms), -self.n**2 * Lms / 2],
-                [-self.n**2 * Lms / 2, -self.n**2 * Lms / 2, (Lls + self.n**2 * Lms)]
+                [(self.Lls + self.Nsr**2 * self.Lms), -self.Nsr**2 * self.Lms / 2, -self.Nsr**2 * self.Lms / 2],
+                [-self.Nsr * self.Lms / 2, (self.Lls + self.Nsr * self.Lms), -self.Nsr * self.Lms / 2],
+                [-self.Nsr * self.Lms / 2, -self.Nsr * self.Lms / 2, (self.Lls + self.Nsr * self.Lms)]
             ], dtype=np.float64)
 
 
@@ -205,10 +235,6 @@ class IM:
         considerando as 3 fases do motor e os valores
         escalres do Torque de Partida, Nominal e Maximo.
 
-        Parametros:
-        Is: Corrente do estator
-        Ir: Corrente do rotor
-
         Retorno:
         Tmec: Vetor do torque mecanico do motor de indução
         Tpartida: Torque de partida do motor de indução (s=1)
@@ -235,6 +261,29 @@ class IM:
 
         return Tmec, Tpartida, np.abs(Tnominal), [Tmax, smax]
     
+    def IM_fsSpeedControl(self, f=None):
+        '''
+        Retorna os torques a partir de uma frequencia
+
+        Parametros:
+        f: Vetor de frequencias de controle do motor de indução (Hz)
+
+        Retorno:
+        Tmec: Vetor do torque mecanico do motor de indução para cada frequencia de controle
+        '''
+
+        if f is None:
+            print("Frequencia de controle nao especificada")
+            return None
+
+        Vs = np.max(self.Vabc[0])
+        ws = 2 * pi * f * (2 / self.Polos)
+
+        Tmec = (3 / ws) * ((Vs**2) / ((self.Rs + self.Rr / self.sVect) 
+                                          + 1j*(self.Xls+self.Xlr))**2) * (self.Rr/self.sVect)
+
+        return Tmec
+
     def IM_getIl(self, HP, Vt, LetraCodigoNominal=None):
         '''
         Retorna a Corrente de partida do motor de inducao a partir
@@ -303,79 +352,3 @@ class IM:
         Spartida = HP*fator # kVa
 
         return (Spartida/(np.sqrt(3)*Vt)*1000)
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-
-    #==========================================================
-    # VARIAVEIS
-    #==========================================================
-    Samples = 1000
-    timeVect = np.linspace(0, 0.15, Samples)
-
-    Vm = 220 # Amplitude da tensao da rede eletrica (V)
-
-    f = 60 # Frequencia da rede (Hz)
-    omega_e = 2 * pi * f # Frequencia da rede (rad/s)
-
-    Polos = 4
-    RPM = 1715
-
-    Rs = 6.4 # Resistencia do estator
-    Lls = 1.39e-4 # Indutancia de dispersao  do estator
-    Lms = 41e-4 # Indutancia de magnetizacaodo estator
-    Ns = 1 # Voltas no enrolamento do estator
-
-    Rr = 4.25 # Resistencia do rotor
-    Llr = 0.74e-4 # Indutancia de dispersao do rotor
-    Lmr = 41e-4 # Indutancia de magnetizacao  do rotor
-    Nr = 1 # Voltas no enrolamento do rotor
-
-    # Xls = 2*pi*f*(Lms+Llr) #Ohm
-    # Xlr = 2*pi*f*(Lmr+Llr) #Ohm
-    Xls = 5.85
-    Xlr = 5.85
-    Xm = 137.8 #Ohm
-
-    Vabc = np.array([
-        Vm*np.cos(omega_e*timeVect),
-        Vm*np.cos(omega_e*timeVect - 2*np.pi/3),
-        Vm*np.cos(omega_e*timeVect + 2*np.pi/3)
-    ])
-
-    #==========================================================
-
-    Params = [Rs,Lms,Lls,Ns,Rr,Lmr,Llr,Nr,Polos,RPM,Xls,Xm,Xlr]
-    x = IM(Params, Vabc=Vabc, f=f, _timeVect=timeVect)
-
-    Vdqs = x.IM_dqs(Vabc)
-    Vdqe = x.IM_dqe(Vabc)
-
-    plt.title("Vdqn Park Transformation")
-    plt.plot(timeVect, Vdqs[0,:], label='Vds')
-    plt.plot(timeVect, Vdqs[1,:], label='Vqs')
-    plt.plot(timeVect, Vdqe[0,:], label='Vde', ls='--')
-    plt.plot(timeVect, Vdqe[1,:], label='Vqe', ls='--')
-    plt.legend()
-    plt.grid()
-    plt.show()
-
-    Is,Ir = x.IM_getIsIr()
-
-    plt.title("Correntes")
-    plt.plot((1-x.sVect)*x.ns, np.abs(Is), label="Is")
-    plt.plot((1-x.sVect)*x.ns, np.abs(Ir), label="Ir")
-    plt.legend()
-    plt.grid()
-    plt.show()
-
-    Tmec,Tp,Tn,[Tmax,smax] = x.IM_getTmec(Is, Ir)
-
-    plt.title("Torque Mecânico")
-    plt.plot((1-x.sVect)*x.ns, np.abs(Tmec), label="Tmec")
-    plt.scatter((1-smax)*x.ns, Tmax, label="Tmec")
-    plt.legend()
-    plt.grid()
-    plt.show()
-
-    # print(x.IM_getIl(15, 208, 'F'))
